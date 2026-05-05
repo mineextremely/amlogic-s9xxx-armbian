@@ -296,7 +296,7 @@ on:
       config_board:
         description: "Set the base Armbian board name."
         required: false
-        default: "odroidn2"
+        default: "aml-s9xx-box"
 
 env:
   TZ: Etc/UTC

@@ -21,7 +21,7 @@ on:
       kernel_version:
         description: "Select kernel version"
         required: false
-        default: "6.12.y"
+        default: "6.18.y"
         type: choice
         options:
           - 5.10.y
@@ -77,11 +77,11 @@ on:
       kernel_sign:
         description: "Set the kernel custom signature"
         required: false
-        default: "-ophub"
+        default: "-actions"
         type: choice
         options:
           - -ophub
-          - -yourname
+          - -actions
 
 env:
   TZ: Etc/UTC
