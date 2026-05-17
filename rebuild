@@ -1166,15 +1166,6 @@ refactor_rootfs() {
         chmod +x etc/update-motd.d/{10-*,20-*,30-*}
     }
 
-    # Disable IP information display
-    ip_info_file="etc/update-motd.d/20-ip-info"
-    [[ -f "${ip_info_file}" ]] && {
-        sed -i \
-            -e '/^get_wan.*_address/s/{.*/{ true; }/' \
-            -e '/if.*ipv6s.*||.*wan6/,/fi/s/^/#/' \
-            "${ip_info_file}"
-    }
-
     # Explicitly disable resizing for Amlogic device [ /usr/lib/armbian/armbian-resize-filesystem ], use armbian-tf settings
     echo "yes" >root/.no_rootfs_resize
 
@@ -1201,7 +1192,9 @@ refactor_rootfs() {
 
     # Optimize systemd-osc-context for SSH
     osc_file="usr/lib/systemd/profile.d/80-systemd-osc-context.sh"
-    grep -q "SSH_CLIENT" "${osc_file}" || sed -i '/\[ "${TERM:-dumb}" = "dumb" \]/a [[ -n "${SSH_CLIENT}" || -n "${SSH_TTY}" ]] && return 0' "${osc_file}"
+    [[ -f "${osc_file}" ]] && {
+        grep -q "SSH_CLIENT" "${osc_file}" || sed -i '/\[ "${TERM:-dumb}" = "dumb" \]/a [[ -n "${SSH_CLIENT}" || -n "${SSH_TTY}" ]] && return 0' "${osc_file}"
+    }
 
     # Get random macaddr
     mac_hexchars="0123456789ABCDEF"
