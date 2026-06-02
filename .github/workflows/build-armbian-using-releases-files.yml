@@ -12,9 +12,10 @@ on:
       set_release:
         description: "Select OS Release."
         required: false
-        default: "trixie"
+        default: "all"
         type: choice
         options:
+          - all
           - trixie
           - bookworm
           - resolute
@@ -22,13 +23,11 @@ on:
       armbian_board:
         description: "Select device board."
         required: false
-        default: "s905d"
+        default: "amlogic"
         type: choice
         options:
-          - all
           - allwinner
           - amlogic
-          - rockchip
           - rockchip50
           - rockchip50_100
           - rockchip100_150
@@ -64,6 +63,8 @@ on:
           - e20c
           - e25
           - eaidk-610
+          - easepi-a2
+          - easepi-r2
           - emb3531
           - fine3399
           - firefly-itx-3588j
@@ -101,6 +102,7 @@ on:
           - lz-d3568
           - lz-d3588
           - lz-k3568
+          - md1000
           - mrkaio-m68s
           - nanopc-t4
           - nanopc-t6
@@ -111,6 +113,7 @@ on:
           - nsy-g68-plus
           - orangepi-3b
           - orangepi-5-plus
+          - orangepi-5-pro
           - orangepi-5b
           - orangepi-zero3
           - painet-p3
@@ -120,7 +123,10 @@ on:
           - r68s
           - renegade-rk3328
           - rk3318-box
+          - roceos-k40pro
           - rock-5-itx
+          - rock-3b
+          - rock-3c
           - rock5b
           - rock5c
           - ruisen-box
@@ -212,6 +218,7 @@ on:
           - s922x-reva
           - s922x-ugoos-am6
           - seewo-sv21
+          - seewo-sv50
           - smart-am40
           - smart-am60
           - station-m1
@@ -243,7 +250,7 @@ on:
       armbian_kernel:
         description: "Select kernel version."
         required: false
-        default: "6.18.y"
+        default: "6.12.y_6.18.y"
         type: choice
         options:
           - 5.10.y
@@ -272,7 +279,7 @@ on:
       kernel_usage:
         description: "Set the tags of the stable kernel."
         required: false
-        default: "flippy"
+        default: "stable"
         type: choice
         options:
           - stable
@@ -289,7 +296,7 @@ on:
       armbian_edition:
         description: "Select image edition type."
         required: false
-        default: "desktop"
+        default: "server"
         type: choice
         options:
           - server
@@ -298,7 +305,7 @@ on:
       builder_name:
         description: "Set Armbian builder signature."
         required: false
-        default: "angel"
+        default: "ophub"
         type: choice
         options:
           - ophub
@@ -308,9 +315,31 @@ env:
   TZ: Etc/UTC
 
 jobs:
+  setup:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set build matrix based on set_release input
+        id: set-matrix
+        run: |
+          if [[ "${{ inputs.set_release }}" == "all" ]]; then
+            MATRIX='{"include":[{"release":"trixie"},{"release":"bookworm"},{"release":"resolute"},{"release":"noble"}]}'
+          else
+            MATRIX='{"include":[{"release":"${{ inputs.set_release }}"}]}'
+          fi
+          echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+
   build:
+    needs: setup
     runs-on: ubuntu-24.04
     if: ${{ github.event.repository.owner.id == github.event.sender.id }}
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+
+    name: build-armbian-${{ matrix.release }}
 
     steps:
       - name: Checkout
@@ -376,7 +405,7 @@ jobs:
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               https://api.github.com/repos/${{ github.repository }}/releases?per_page=20 | \
-              jq -r --arg RTK "Armbian_${{ inputs.set_release }}_arm64_" \
+              jq -r --arg RTK "Armbian_${{ matrix.release }}_arm64_" \
               --arg BOARD "-trunk_" \
               '[.[] | select(.tag_name | contains($RTK))] |
               map(.assets[] | select(.name | contains($BOARD) and endswith(".img.gz"))) |
@@ -403,18 +432,15 @@ jobs:
                -o "${armbian_buildpath}/${armbian_filename}"
           [[ "${?}" -ne "0" ]] && echo "Error: Download failed." && exit 1
 
-          # Decompress the image
-          cd "${armbian_buildpath}" && gzip -df *.img.gz && sync
-
-          echo "build_tag=Armbian_${{ inputs.set_release }}_arm64_${{ inputs.armbian_edition }}_$(date +"%Y.%m")" >> ${GITHUB_ENV}
+          echo "build_tag=Armbian_${{ matrix.release }}_arm64_${{ inputs.armbian_edition }}_$(date +"%Y.%m")" >> ${GITHUB_ENV}
           echo "status=success" >> ${GITHUB_OUTPUT}
 
-      - name: Rebuild Armbian [ ${{ inputs.set_release }} ]
+      - name: Rebuild Armbian [ ${{ matrix.release }} ]
         uses: ophub/amlogic-s9xxx-armbian@main
         if: ${{ steps.down.outputs.status == 'success' && !cancelled() }}
         with:
           build_target: armbian
-          armbian_path: build/output/images/*.img
+          armbian_path: build/output/images/*.img.gz
           armbian_board: ${{ inputs.armbian_board }}
           armbian_kernel: ${{ inputs.armbian_kernel }}
           auto_kernel: ${{ inputs.auto_kernel }}

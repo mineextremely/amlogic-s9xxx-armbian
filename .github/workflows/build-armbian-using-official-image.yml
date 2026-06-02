@@ -16,13 +16,11 @@ on:
       armbian_board:
         description: "Select device board."
         required: false
-        default: "s905d"
+        default: "amlogic"
         type: choice
         options:
-          - all
           - allwinner
           - amlogic
-          - rockchip
           - rockchip50
           - rockchip50_100
           - rockchip100_150
@@ -58,6 +56,8 @@ on:
           - e20c
           - e25
           - eaidk-610
+          - easepi-a2
+          - easepi-r2
           - emb3531
           - fine3399
           - firefly-itx-3588j
@@ -95,6 +95,7 @@ on:
           - lz-d3568
           - lz-d3588
           - lz-k3568
+          - md1000
           - mrkaio-m68s
           - nanopc-t4
           - nanopc-t6
@@ -105,6 +106,7 @@ on:
           - nsy-g68-plus
           - orangepi-3b
           - orangepi-5-plus
+          - orangepi-5-pro
           - orangepi-5b
           - orangepi-zero3
           - painet-p3
@@ -114,7 +116,10 @@ on:
           - r68s
           - renegade-rk3328
           - rk3318-box
+          - roceos-k40pro
           - rock-5-itx
+          - rock-3b
+          - rock-3c
           - rock5b
           - rock5c
           - ruisen-box
@@ -206,6 +211,7 @@ on:
           - s922x-reva
           - s922x-ugoos-am6
           - seewo-sv21
+          - seewo-sv50
           - smart-am40
           - smart-am60
           - station-m1
@@ -237,7 +243,7 @@ on:
       armbian_kernel:
         description: "Select kernel version."
         required: false
-        default: "6.18.y"
+        default: "6.12.y_6.18.y"
         type: choice
         options:
           - 5.10.y
@@ -266,7 +272,7 @@ on:
       kernel_usage:
         description: "Set the tags of the stable kernel."
         required: false
-        default: "flippy"
+        default: "stable"
         type: choice
         options:
           - stable
@@ -283,7 +289,7 @@ on:
       armbian_edition:
         description: "Select image edition type."
         required: false
-        default: "desktop"
+        default: "server"
         type: choice
         options:
           - server
@@ -292,7 +298,7 @@ on:
       builder_name:
         description: "Set Armbian builder signature."
         required: false
-        default: "angel"
+        default: "ophub"
         type: choice
         options:
           - ophub

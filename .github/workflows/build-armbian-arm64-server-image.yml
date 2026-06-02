@@ -12,9 +12,10 @@ on:
       set_release:
         description: "Select OS Release."
         required: false
-        default: "trixie"
+        default: "all"
         type: choice
         options:
+          - all
           - trixie
           - bookworm
           - resolute
@@ -22,13 +23,11 @@ on:
       armbian_board:
         description: "Select device board."
         required: false
-        default: "s905d"
+        default: "amlogic"
         type: choice
         options:
-          - all
           - allwinner
           - amlogic
-          - rockchip
           - rockchip50
           - rockchip50_100
           - rockchip100_150
@@ -64,6 +63,8 @@ on:
           - e20c
           - e25
           - eaidk-610
+          - easepi-a2
+          - easepi-r2
           - emb3531
           - fine3399
           - firefly-itx-3588j
@@ -101,6 +102,7 @@ on:
           - lz-d3568
           - lz-d3588
           - lz-k3568
+          - md1000
           - mrkaio-m68s
           - nanopc-t4
           - nanopc-t6
@@ -111,6 +113,7 @@ on:
           - nsy-g68-plus
           - orangepi-3b
           - orangepi-5-plus
+          - orangepi-5-pro
           - orangepi-5b
           - orangepi-zero3
           - painet-p3
@@ -120,7 +123,10 @@ on:
           - r68s
           - renegade-rk3328
           - rk3318-box
+          - roceos-k40pro
           - rock-5-itx
+          - rock-3b
+          - rock-3c
           - rock5b
           - rock5c
           - ruisen-box
@@ -212,6 +218,7 @@ on:
           - s922x-reva
           - s922x-ugoos-am6
           - seewo-sv21
+          - seewo-sv50
           - smart-am40
           - smart-am60
           - station-m1
@@ -243,7 +250,7 @@ on:
       armbian_kernel:
         description: "Select kernel version."
         required: false
-        default: "6.18.y"
+        default: "6.12.y_6.18.y"
         type: choice
         options:
           - 5.10.y
@@ -293,7 +300,7 @@ on:
       builder_name:
         description: "Set Armbian builder signature."
         required: false
-        default: "angel"
+        default: "ophub"
         type: choice
         options:
           - ophub
@@ -301,16 +308,38 @@ on:
       config_board:
         description: "Set the base Armbian board name."
         required: false
-        default: "aml-s9xx-box"
+        default: "odroidn2"
 
 env:
   TZ: Etc/UTC
   ROOTFS_SCRIPT: compile-kernel/tools/script/docker/build_armbian_rootfs_file.sh
 
 jobs:
+  setup:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set build matrix based on set_release input
+        id: set-matrix
+        run: |
+          if [[ "${{ inputs.set_release }}" == "all" ]]; then
+            MATRIX='{"include":[{"release":"trixie"},{"release":"bookworm"},{"release":"resolute"},{"release":"noble"}]}'
+          else
+            MATRIX='{"include":[{"release":"${{ inputs.set_release }}"}]}'
+          fi
+          echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+
   build:
+    needs: setup
     runs-on: ubuntu-24.04
     if: ${{ github.event.repository.owner.id == github.event.sender.id }}
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+
+    name: build-armbian-${{ matrix.release }}
 
     steps:
       - name: Checkout
@@ -372,7 +401,7 @@ jobs:
           ln -sf /builder/build /home/runner/work/_actions/ophub/amlogic-s9xxx-armbian/main/build
           echo "status=success" >> ${GITHUB_OUTPUT}
 
-      - name: Compile Armbian [ ${{ inputs.set_release }} ]
+      - name: Compile Armbian [ ${{ matrix.release }} ]
         id: compile
         working-directory: /builder
         if: ${{ steps.down.outputs.status == 'success' && !cancelled() }}
@@ -386,7 +415,7 @@ jobs:
 
           # Compile options reference: https://docs.armbian.com/Developer-Guide_Build-Options
           cd build/
-              ./compile.sh RELEASE=${{ inputs.set_release }} BOARD=${config_board} BRANCH=current BUILD_MINIMAL=no \
+              ./compile.sh RELEASE=${{ matrix.release }} BOARD=${config_board} BRANCH=current BUILD_MINIMAL=no \
                            BUILD_ONLY=default HOST=armbian BUILD_DESKTOP=no EXPERT=yes KERNEL_CONFIGURE=no \
                            COMPRESS_OUTPUTIMAGE="sha" SHARE_LOG=yes
 
@@ -398,7 +427,7 @@ jobs:
         run: |
           # Extract essential artifacts and remove build files
           chmod +x ${ROOTFS_SCRIPT}
-          ${ROOTFS_SCRIPT} -v ${{ inputs.set_release }} -s true -c true -k true -p arm64
+          ${ROOTFS_SCRIPT} -v ${{ matrix.release }} -s true -c true -k true -p arm64
 
           # Remove build files while preserving output
           cd build/
@@ -406,7 +435,7 @@ jobs:
 
           # Display disk usage after cleanup
           df -hT ${PWD}
-          echo "build_tag=Armbian_${{ inputs.set_release }}_arm64_${{ inputs.armbian_edition }}_$(date +"%Y.%m")" >> ${GITHUB_ENV}
+          echo "build_tag=Armbian_${{ matrix.release }}_arm64_${{ inputs.armbian_edition }}_$(date +"%Y.%m")" >> ${GITHUB_ENV}
           echo "status=success" >> ${GITHUB_OUTPUT}
 
       - name: Upload Armbian image to Release
