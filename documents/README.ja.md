@@ -92,6 +92,8 @@ GitHub Actions は Microsoft が提供するサービスであり、高性能な
         - [12.11.2.2 cm9vdA の u-boot 作成スクリプトの使用方法](#121122-cm9vda-の-u-boot-作成スクリプトの使用方法)
     - [12.12 メモリサイズの誤認識](#1212-メモリサイズの誤認識)
     - [12.13 dtb ファイルの逆コンパイル方法](#1213-dtb-ファイルの逆コンパイル方法)
+      - [12.13.1 dtb ファイルを直接逆コンパイル](#12131-dtb-ファイルを直接逆コンパイル)
+      - [12.13.2 実行中のデバイスから完全状態 DTS をエクスポート（推奨）](#12132-実行中のデバイスから完全状態-dts-をエクスポート推奨)
     - [12.14 cmdline 設定の変更方法](#1214-cmdline-設定の変更方法)
     - [12.15 新しいサポートデバイスの追加方法](#1215-新しいサポートデバイスの追加方法)
       - [12.15.1 デバイス設定ファイルの追加](#12151-デバイス設定ファイルの追加)
@@ -500,12 +502,14 @@ Ubuntu、Debian、Armbian システムでのカーネルコンパイルをサポ
 
 ### 9.3 カスタムドライバモジュールのコンパイル方法
 
-Linux メインラインカーネルには一部のドライバがまだ内蔵されていないため、自分でドライバモジュールをコンパイルできます。メインラインカーネルをサポートするドライバを選択してください。Android ドライバは通常メインラインカーネルと互換性がなく、コンパイルできません。例は以下の通りです：
+Linux メインラインカーネルには一部のドライバがまだ内蔵されていないため、自分でドライバモジュールをコンパイルできます。メインラインカーネルをサポートするドライバを選択してください。Android ドライバは通常メインラインカーネルと互換性がなく、コンパイルできません。投稿 [rtl8189fs ドライバーモジュールのコンパイル方法⁠⁠](https://github.com/ophub/amlogic-s9xxx-armbian/issues/3193) を参照してください。
+
+例は以下の通りです：
 
 ```shell
 # ステップ1：最新カーネルに更新
 # 初期の header ファイルが不完全なため、最新のカーネルに更新する必要があります。
-# 各カーネルバージョンの要件：5.10.222, 5.15.163, 6.1.100, 6.6.41 以上
+# 各カーネルバージョンの要件：5.10.222, 5.15.163, 6.1.100, 6.6.41, 6.12, 6.18 以上
 armbian-sync
 armbian-update -k 6.1
 
@@ -514,9 +518,9 @@ armbian-update -k 6.1
 mkdir -p /usr/local/toolchain
 cd /usr/local/toolchain
 # コンパイルツールのダウンロード
-wget https://github.com/ophub/kernel/releases/download/dev/arm-gnu-toolchain-14.3.rel1-aarch64-aarch64-none-linux-gnu.tar.xz
+wget https://github.com/ophub/kernel/releases/download/dev/arm-gnu-toolchain-15.3.rel1-aarch64-aarch64-none-linux-gnu.tar.xz
 # 解凍
-tar -Jxf arm-gnu-toolchain-14.3.rel1-aarch64-aarch64-none-linux-gnu.tar.xz
+tar -Jxf arm-gnu-toolchain-15.3.rel1-aarch64-aarch64-none-linux-gnu.tar.xz
 # その他のコンパイル依存パッケージのインストール（オプション、エラーメッセージに応じて不足分を手動インストール可能）
 armbian-kernel -u
 
@@ -527,7 +531,7 @@ cd ~/
 git clone https://github.com/jwrdegoede/rtl8189ES_linux
 cd rtl8189ES_linux
 # コンパイル環境の設定
-gun_file="arm-gnu-toolchain-14.3.rel1-aarch64-aarch64-none-linux-gnu.tar.xz"
+gun_file="arm-gnu-toolchain-15.3.rel1-aarch64-aarch64-none-linux-gnu.tar.xz"
 toolchain_path="/usr/local/toolchain"
 toolchain_name="gcc"
 export CROSS_COMPILE="${toolchain_path}/${gun_file//.tar.xz/}/bin/aarch64-none-linux-gnu-"
@@ -1114,7 +1118,7 @@ net.ipv6.conf.lo.disable_ipv6 = 1
 
 #### 12.7.3 ワイヤレスの有効化方法
 
-一部のデバイスは無線ネットワークをサポートしています。有効化方法は以下の通りです：
+一部のデバイスは無線ネットワークに対応しています。無線APモードの利用方法については[説明](https://github.com/ophub/amlogic-s9xxx-armbian/issues/3610#issuecomment-5161303377)をご参照ください。DHCPサービスを併せて有効にする設定方法については[説明](https://github.com/ophub/amlogic-s9xxx-armbian/issues/3610#issuecomment-5162533992)をご参照ください。無線クライアントモードの利用方法については、以下の説明をご覧ください：
 
 ```shell
 # 管理ツールのインストール
@@ -1476,7 +1480,9 @@ cm9vdA のオープンソースプロジェクト [cm9vdA/build-linux](https://g
 
 ### 12.13 dtb ファイルの逆コンパイル方法
 
-一部の新しいデバイスは現在のサポートリストに含まれていない場合（またはハードウェアの違いがある場合）があり、dtb ファイルを逆コンパイルして関連パラメータを調整し、適合を試みることができます。
+#### 12.13.1 dtb ファイルを直接逆コンパイル
+
+既存の dtb ファイルを直接逆コンパイルし、関連パラメータを調整して適合させることができます。
 
 ```shell
 # 依存関係のインストール
@@ -1491,11 +1497,19 @@ dtc -I dts -O dtb -o xxx.dtb xxx.dts
 
 # 3. データを保存して再起動
 sync && reboot
-
-# 4. [任意アクション] 必要に応じてテスト
-# 例えば 12.16 で紹介した問題の解決時に、再インストールしてテスト
-armbian-install
 ```
+
+#### 12.13.2 実行中のデバイスから完全状態 DTS をエクスポート（推奨）
+
+特定のデバイスの適合および保守において、コンパイル済みのバイナリデバイスツリーファイル（.dtb）のみしか取得できず、対応するカーネルソースコード（.dts）が存在しない場合があります。その際は、正常に動作している Armbian システム上で以下のコマンドを実行し、カーネルランタイム環境から現在有効なデバイスツリーを直接逆コンパイルしてエクスポートすることをお勧めします：
+
+```shell
+dtc -I fs -O dts /sys/firmware/devicetree/base > my_runtime.dts
+```
+
+このコマンドはカーネルメモリから直接デバイスツリーデータを抽出するため、ディスク上の静的な .dtb ファイルを単に逆コンパイルするよりも正確で完全なテキストが得られます。ブートローダー（U-Boot など）やシステムファームウェアは、起動段階で実際のハードウェア検出結果に基づいてデバイスツリーを動的に修正または注入するからです（例：bootargs 起動パラメータのリアルタイム更新、特定ペリフェラルの status 状態の動的な切り替え、reg レジスタアドレスの調整など）。ディスク上の静的ファイルを直接逆コンパイルした場合、これらのランタイム変更を捕捉できません。
+
+この方法で取得されるのは、カーネルが最終的に適用した形態のランタイム（Runtime）デバイスツリーであり、システムの低レベルにおけるハードウェアの実際のトポロジーと動作状態を正確に反映しています。当該デバイスの .dts ソースコードを参照、修正、または再適合する際に、このファイルは極めて高い参考価値を持ち、競合のトラブルシューティングとペリフェラル設定の補完をより正確かつ効率的にします。
 
 ### 12.14 cmdline 設定の変更方法
 
